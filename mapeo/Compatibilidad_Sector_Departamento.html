@@ -1,0 +1,331 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Compatibilidad Sector–Departamento</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Source+Sans+3:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: encabezado con filtros → franja de resumen que cambia según el filtro → matriz sectores × departamentos con totales */
+:root{
+  --bg:#ffffff; --surface:#ffffff; --ink:#3a2414; --muted:#8a6f5c; --line:#f0dccb;
+  --accent:#c2410c; --accent-soft:#ffedd5; --cell-on:#ea580c; --cell-on-ink:#ffffff; --cell-off:#f6ede4;
+  --hl:#fff1e6; --no:#b91c1c; --no-soft:#fee2e2;
+  --f-display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --f-body:"Source Sans 3","Segoe UI",Arial,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 40px}
+.wrap{max-width:1500px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+header{display:flex;flex-wrap:wrap;gap:16px 32px;align-items:flex-end;justify-content:space-between}
+.eyebrow{font-family:var(--f-mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+h1{font-family:var(--f-display);font-weight:800;font-size:clamp(22px,3vw,30px);margin:4px 0 4px;letter-spacing:-.01em;text-wrap:balance}
+.sub{color:var(--muted);margin:0;max-width:62ch}
+.filters{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label{font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+select{font:inherit;font-size:15px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 34px 9px 12px;max-width:min(320px,88vw);
+  appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+  background-position:calc(100% - 17px) 55%,calc(100% - 12px) 55%;background-size:5px 5px;background-repeat:no-repeat;cursor:pointer}
+select.active{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+select:focus-visible,button:focus-visible,input:focus-visible,th[tabindex]:focus-visible,td[tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button{font:inherit;cursor:pointer}
+.btn-reset{border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:8px;padding:9px 14px;font-weight:600}
+.btn-reset:disabled{opacity:.4;cursor:default}
+.options{display:flex;flex-wrap:wrap;gap:18px;font-size:14px;color:var(--muted);align-items:center}
+.options label{display:flex;gap:6px;align-items:center;cursor:pointer}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:transparent;color:var(--muted);padding:6px 12px;font-size:14px}
+.seg button[aria-pressed="true"]{background:var(--accent-soft);color:var(--ink);font-weight:700}
+
+/* Resumen */
+.summary{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:14px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:16px}
+.kpi .n{font-family:var(--f-display);font-weight:800;font-size:28px;line-height:1.1;font-variant-numeric:tabular-nums}
+.kpi .l{color:var(--muted);font-size:13.5px}
+.kpi .n small{font-size:15px;color:var(--muted);font-weight:600}
+.headline{font-family:var(--f-display);font-weight:700;font-size:19px;margin:0;text-wrap:balance}
+.headline b{color:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:13.5px;background:var(--bg);color:var(--ink);cursor:pointer}
+.chip.on{background:var(--accent-soft);border-color:transparent}
+.chip.off{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--line)}
+.chip:hover{border-color:var(--accent)}
+.verdict{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.badge{font-family:var(--f-display);font-weight:800;font-size:20px;padding:8px 16px;border-radius:10px}
+.badge.yes{background:var(--cell-on);color:#000}
+.badge.no{background:var(--no-soft);color:var(--no)}
+.hint{font-size:13px;color:var(--muted);margin:0}
+
+/* Matriz */
+.legend{display:flex;flex-wrap:wrap;gap:16px;font-size:13px;color:var(--muted);align-items:center}
+.sw{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-right:6px}
+.table-box{overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px;max-height:78vh}
+table{border-collapse:separate;border-spacing:0;font-size:13.5px}
+thead th{position:sticky;top:0;background:var(--surface);z-index:2;vertical-align:bottom;border-bottom:1px solid var(--line)}
+th.dept{padding:10px 0 8px;width:38px;min-width:38px;cursor:pointer}
+th.dept span{writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap;font-weight:600;font-size:12.5px;letter-spacing:.02em;display:inline-block;padding:0 2px}
+th.dept:hover span,th.dept.sel span{color:var(--accent)}
+th.corner{left:0;z-index:3;text-align:left;padding:10px 12px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);min-width:260px}
+th.tot,td.tot{position:sticky;right:0;background:var(--surface);border-left:1px solid var(--line)}
+thead th.tot{z-index:3;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:10px;text-align:left;min-width:120px}
+tbody th{position:sticky;left:0;background:var(--surface);z-index:1;text-align:left;font-weight:600;padding:5px 12px;border-right:1px solid var(--line);cursor:pointer;max-width:300px;line-height:1.25}
+tbody th:hover,tbody th.sel{color:var(--accent)}
+tbody tr:hover th,tbody tr:hover td.tot{background:var(--hl)}
+td.c{padding:2px;text-align:center}
+td.c i{display:block;width:30px;height:24px;margin:0 auto;border-radius:4px;background:var(--cell-off)}
+td.c.on i{background:var(--cell-on);position:relative}
+td.c.on i::after{content:"";position:absolute;left:11px;top:5px;width:6px;height:11px;border:solid var(--cell-on-ink);border-width:0 2.5px 2.5px 0;transform:rotate(45deg)}
+td.c{cursor:pointer}
+td.c.colhl i{outline:2px solid var(--hl);outline-offset:0}
+td.c.colhl{background:var(--hl)}
+tbody tr:hover td.c{background:var(--hl)}
+td.tot{padding:4px 10px;font-family:var(--f-mono);font-size:12.5px;font-variant-numeric:tabular-nums}
+.bar{display:flex;align-items:center;gap:8px}
+.bar b{display:block;height:7px;border-radius:4px;background:var(--accent);min-width:2px}
+tfoot td,tfoot th{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--line);z-index:2}
+tfoot th{left:0;z-index:3;text-align:left;padding:8px 12px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+tfoot td.ct{text-align:center;font-family:var(--f-mono);font-size:12.5px;padding:8px 0;font-variant-numeric:tabular-nums}
+tfoot td.tot{z-index:3}
+.empty{padding:30px;color:var(--muted)}
+.note{font-size:12.5px;color:var(--muted);margin:0}
+td.c:not(.on){cursor:default}
+td.c.on i{transition:transform .12s}
+td.c.on:hover i{transform:scale(1.12)}
+/* Vista de distritos */
+.crumbs{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:14px;color:var(--muted)}
+.crumbs button{border:0;background:none;color:var(--accent);font-weight:700;padding:2px 0}
+.back{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:8px 14px;font-weight:700;align-self:flex-start}
+.back:hover{border-color:var(--accent)}
+.dhead{display:flex;flex-direction:column;gap:6px}
+.dhead h2{font-family:var(--f-display);font-weight:800;font-size:clamp(20px,2.6vw,26px);margin:0;text-wrap:balance}
+.dhead h2 b{color:var(--accent)}
+.meter{height:8px;border-radius:5px;background:var(--cell-off);overflow:hidden;max-width:420px}
+.meter b{display:block;height:100%;background:var(--cell-on)}
+.dgroup{display:flex;flex-direction:column;gap:10px}
+.dgroup h3{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0}
+.dgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
+.dcard{display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface);min-width:0}
+.dcard .ck{flex:none;width:24px;height:24px;border-radius:5px;background:var(--cell-on);position:relative}
+.dcard .ck::after{content:"";position:absolute;left:9px;top:4px;width:6px;height:11px;border:solid var(--cell-on-ink);border-width:0 2.5px 2.5px 0;transform:rotate(45deg)}
+.dcard .nm{font-weight:700;line-height:1.2}
+.dcard .sm{font-size:12.5px;color:var(--muted)}
+.dcard.off{background:transparent;color:var(--muted)}
+.dcard.off .ck{background:var(--cell-off)}
+.dcard.off .ck::after{display:none}
+.dcard.off .nm{font-weight:600}
+.dempty{padding:16px;border:1px dashed var(--line);border-radius:10px;color:var(--muted)}
+.home-link{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border:1px solid var(--accent);border-radius:999px;color:var(--accent);font-weight:700;font-size:13px;text-decoration:none;background:var(--surface)}
+.home-link:hover{background:var(--accent-soft);color:var(--accent)}
+@media (max-width:640px){th.corner{min-width:170px} tbody th{max-width:190px;font-size:12.5px} thead th.tot{min-width:70px} .bar b{display:none}}
+</style>
+
+<div class="wrap">
+  <a class="home-link" href="mapeo-general.html">← Volver al inicio</a>
+  <header>
+    <div>
+      <div class="eyebrow">MIC · Régimen de Maquila</div>
+      <h1>Compatibilidad de sectores por departamento</h1>
+      <p class="sub">28 sectores productivos y su compatibilidad con los 18 departamentos del país.</p>
+    </div>
+    <div class="filters">
+      <div class="field"><label for="fSector">Sector</label><select id="fSector"></select></div>
+      <div class="field"><label for="fDept">Departamento</label><select id="fDept"></select></div>
+      <button class="btn-reset" id="reset" type="button">Ver todo</button>
+    </div>
+  </header>
+
+  <section class="summary" id="summary" aria-live="polite"></section>
+
+  <section id="detail" class="wrap" style="gap:22px" hidden></section>
+
+  <div id="mainView" class="wrap" style="gap:20px">
+  <div class="options">
+    <span>Ordenar sectores:</span>
+    <span class="seg" role="group" aria-label="Orden">
+      <button type="button" id="ordA" aria-pressed="true">Alfabético</button>
+      <button type="button" id="ordN" aria-pressed="false">Más compatibles primero</button>
+    </span>
+    <label><input type="checkbox" id="hideEmpty"> Ocultar filas y columnas sin compatibilidad</label>
+  </div>
+
+  <div class="legend">
+    <span><span class="sw" style="background:var(--cell-on)"></span>Compatible</span>
+    <span><span class="sw" style="background:var(--cell-off);border:1px solid var(--line)"></span>No compatible</span>
+    <span>Total = cantidad de departamentos (por sector) o de sectores (por departamento)</span>
+  </div>
+
+  <div class="table-box" id="box"></div>
+  <p class="note">Tocá cualquier ✓ para ver en qué distritos de ese departamento se realiza el rubro. Fuente: matriz de compatibilidad sector–departamento y base de mapeo de rubros por distrito.</p>
+  </div>
+</div>
+
+<script>
+const SECTORS=[
+ ["Artículos de deporte","Artículos de deporte"],
+ ["Balanceado para animales","Balanceado para animales"],
+ ["Biocombustibles","Biocombustibles"],
+ ["Confección y textiles","Confección y textiles"],
+ ["Domisanitarios y cosméticos","Domisanitarios y cosméticos"],
+ ["Elaboración de bebidas","Elaboración de bebidas"],
+ ["Productos alimenticios","Elaboración de productos alimenticios"],
+ ["Productos de tabaco","Elaboración de productos de tabaco"],
+ ["Coque y refinación del petróleo","Fabricación de coque y de productos de la refinación del petróleo"],
+ ["Cuero y productos conexos","Fabricación de cuero y productos conexos"],
+ ["Equipos informáticos, electrónicos y ópticos","Fabricación de equipos informáticos, electrónicos y ópticos"],
+ ["Maquinarias y equipos NCP","Fabricación de maquinarias y equipos NCP"],
+ ["Metales","Fabricación de metales"],
+ ["Muebles","Fabricación de muebles"],
+ ["Otros equipos de transporte NCP","Fabricación de otros equipos de transporte NCP"],
+ ["Papel y productos de papel","Fabricación de papel y productos de papel"],
+ ["Caucho y plástico","Fabricación de productos de caucho y plástico"],
+ ["Minerales no metálicos","Fabricación de productos de minerales no metálicos"],
+ ["Sustancias y productos químicos","Fabricación de sustancias y productos químicos"],
+ ["Vehículos, remolques y semirremolques","Fabricación de vehículos automotores, remolques y semirremolques"],
+ ["Instrumentos musicales","Instrumentos musicales"],
+ ["Instrumentos y materiales médicos","Instrumentos y materiales médicos"],
+ ["Joyas, bisutería y conexos","Joyas, bisutería y artículos conexos"],
+ ["Juegos y juguetes","Juegos y juguetes"],
+ ["Pinturas, tintes y barnices","Pinturas, tintes y barnices"],
+ ["Madera, corcho y paja (excepto muebles)","Producción de madera y fabricación de productos de madera y corcho, excepto muebles; fabricación de artículos de paja y de materiales trenzables"],
+ ["Productos farmacéuticos","Productos farmacéuticos"],
+ ["Servicios intangibles","Servicios intangibles"]
+];
+// Índices de sector (base 1) compatibles por departamento
+const DEPTS=[
+ ["Alto Paraguay",[2,5,6,7,19,25,26,27]],
+ ["Alto Paraná",[1,2,6,7,8,11,12,13,15,17,18,20,22,24,26]],
+ ["Amambay",[2,3,7,11,14,16,20,21,22,23,24,26]],
+ ["Asunción",[28]],
+ ["Boquerón",[2,5,6,7,19,25,27]],
+ ["Caaguazú",[2,6,7,8,11,16,17,18,26]],
+ ["Caazapá",[2,3,6,7,12,21,23,26]],
+ ["Canindeyú",[2,7,11,12,15,16,19,26]],
+ ["Central",[1,2,4,5,6,7,9,10,13,15,16,17,19,22,25,27,28]],
+ ["Concepción",[2,5,7,13,14,16,18,19,25,26,27]],
+ ["Cordillera",[2,5,6,7,16,17,18,19,25,26,27]],
+ ["Guairá",[2,7,11,26]],
+ ["Itapúa",[2,3,6,7,17,19,20]],
+ ["Misiones",[2,7]],
+ ["Ñeembucú",[2,5,9,13,16,19,21,23,25,26,27]],
+ ["Paraguarí",[2,6,7,10,11,20,24,26]],
+ ["Presidente Hayes",[2,5,6,7,13,15,19,25,26,27]],
+ ["San Pedro",[2,7,13,16,18,26]]
+];
+const NS=SECTORS.length, ND=DEPTS.length;
+const M=SECTORS.map((_,s)=>DEPTS.map(d=>d[1].includes(s+1)));
+const sCount=s=>M[s].filter(Boolean).length;
+const dCount=d=>DEPTS[d][1].length;
+const total=DEPTS.reduce((a,d)=>a+d[1].length,0);
+
+const st={s:-1,d:-1,order:"a",hide:false};
+try{const v=JSON.parse(localStorage.getItem("compat-ui")||"{}");if(v.order)st.order=v.order;if(v.hide)st.hide=true}catch(e){}
+
+const $=id=>document.getElementById(id);
+const fS=$("fSector"),fD=$("fDept");
+fS.innerHTML='<option value="-1">Todos los sectores (28)</option>'+SECTORS.map((x,i)=>`<option value="${i}">${x[0]}</option>`).join("");
+fD.innerHTML='<option value="-1">Todos los departamentos (18)</option>'+DEPTS.map((x,i)=>`<option value="${i}">${x[0]}</option>`).join("");
+const esc=t=>t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
+
+function setS(v){st.s=(st.s===v)?-1:v;render()}
+function setD(v){st.d=(st.d===v)?-1:v;render()}
+
+function summary(){
+  const el=$("summary");
+  el.hidden=(st.s<0&&st.d<0);
+  if(el.hidden){el.innerHTML="";return}
+  if(st.s>=0&&st.d>=0){
+    const ok=M[st.s][st.d];
+    el.innerHTML=`<div class="verdict"><span class="badge ${ok?"yes":"no"}">${ok?"Compatible":"No compatible"}</span>
+      <p class="headline">${esc(SECTORS[st.s][1])} en <b>${DEPTS[st.d][0]}</b></p></div>`;
+  }else if(st.s>=0){
+    el.innerHTML=`<p class="headline">${esc(SECTORS[st.s][1])}: <b>${sCount(st.s)} de 18</b> departamentos compatibles</p>`;
+  }else{
+    el.innerHTML=`<p class="headline">${DEPTS[st.d][0]}: <b>${dCount(st.d)} de 28</b> sectores compatibles</p>`;
+  }
+}
+
+function table(){
+  let rows=st.s>=0?[st.s]:SECTORS.map((_,i)=>i);
+  let cols=st.d>=0?[st.d]:DEPTS.map((_,i)=>i);
+  if(st.hide){
+    rows=rows.filter(s=>cols.some(d=>M[s][d]));
+    cols=cols.filter(d=>rows.some(s=>M[s][d]));
+  }
+  if(st.order==="a") rows.sort((a,b)=>SECTORS[a][0].localeCompare(SECTORS[b][0],"es"));
+  else rows.sort((a,b)=>sCount(b)-sCount(a)||SECTORS[a][0].localeCompare(SECTORS[b][0],"es"));
+  if(!rows.length||!cols.length){$("box").innerHTML='<div class="empty">No hay compatibilidades para esta selección. Desmarcá "Ocultar…" para ver la matriz completa.</div>';return}
+  const maxS=Math.max(...SECTORS.map((_,i)=>sCount(i)));
+  let h=`<table><thead><tr><th class="corner">Sector \\ Departamento</th>`;
+  h+=cols.map(d=>`<th class="dept${st.d===d?" sel":""}" data-d="${d}" tabindex="0" title="${DEPTS[d][0]}: ${dCount(d)} sectores"><span>${DEPTS[d][0]}</span></th>`).join("");
+  h+=`<th class="tot">Deptos.</th></tr></thead><tbody>`;
+  for(const s of rows){
+    const n=sCount(s);
+    h+=`<tr><th class="${st.s===s?"sel":""}" data-s="${s}" tabindex="0" title="${esc(SECTORS[s][1])}">${SECTORS[s][0]}</th>`;
+    h+=cols.map(d=>`<td class="c${M[s][d]?" on":""}" data-s="${s}" data-d="${d}" title="${esc(SECTORS[s][0])} · ${DEPTS[d][0]}: ${M[s][d]?"compatible":"no compatible"}"><i></i></td>`).join("");
+    h+=`<td class="tot"><div class="bar"><b style="width:${Math.round(n/maxS*60)}px"></b>${n}</div></td></tr>`;
+  }
+  h+=`</tbody><tfoot><tr><th>Sectores por depto.</th>`;
+  h+=cols.map(d=>`<td class="ct">${dCount(d)}</td>`).join("");
+  h+=`<td class="tot">${total}</td></tr></tfoot></table>`;
+  $("box").innerHTML=h;
+  $("box").querySelectorAll("th.dept").forEach(t=>{t.onclick=()=>setD(+t.dataset.d);t.onkeydown=e=>{if(e.key==="Enter")setD(+t.dataset.d)}});
+  $("box").querySelectorAll("tbody th").forEach(t=>{t.onclick=()=>setS(+t.dataset.s);t.onkeydown=e=>{if(e.key==="Enter")setS(+t.dataset.s)}});
+  $("box").querySelectorAll("td.c.on").forEach(t=>{t.tabIndex=0;t.onclick=()=>openDetail(+t.dataset.s,+t.dataset.d);t.onkeydown=e=>{if(e.key==="Enter")openDetail(+t.dataset.s,+t.dataset.d)}});
+  // resaltar columna al pasar el mouse
+  const tb=$("box").querySelector("table");
+  tb.addEventListener("mouseover",e=>{const c=e.target.closest("[data-d]");tb.querySelectorAll(".colhl").forEach(x=>x.classList.remove("colhl"));
+    if(c&&(c.tagName==="TD"||c.classList.contains("dept")))tb.querySelectorAll(`td.c[data-d="${c.dataset.d}"]`).forEach(x=>x.classList.add("colhl"))});
+  tb.addEventListener("mouseleave",()=>tb.querySelectorAll(".colhl").forEach(x=>x.classList.remove("colhl")));
+}
+
+// ---- Distritos ----
+const DIST_DATA={"deps":["Alto Paraguay","Alto Paraná","Amambay","Asunción","Boquerón","Caaguazú","Caazapá","Canindeyú","Central","Concepción","Cordillera","Guairá","Itapúa","Misiones","Ñeembucú","Paraguarí","Presidente Hayes","San Pedro"],"rows":[["25 de Diciembre",17,[2,7,16,26]],["3 de Febrero",5,[2,7]],["3 de Mayo",6,[2,7,21,23,26]],["Abaí",6,[2,7,21,23,26]],["Acahay",15,[2,7]],["Alberdi",14,[9,13,19,21,23]],["Alto Verá",12,[2,7,19]],["Altos",10,[18]],["Antequera",17,[2,7,26]],["Areguá",8,[2,5,7,16,17,19,25,27]],["Arroyito",9,[2,7,13,14,16,18,26]],["Arroyos y Esteros",10,[18]],["Asunción",3,[28]],["Atyrá",10,[6,18]],["Ayolas",13,[2,7]],["Azote'y",9,[2,7,14,16,18,26]],["Bahía Negra",0,[2,5,19,25,26,27]],["Belén",9,[2,7,13,18]],["Bella Vista",12,[2,6,7,17,20]],["Bella Vista Norte",2,[2,3,7,11,14,16,21,23,24,26]],["Benjamín Aceval",16,[2,5,7,13,19,25,27]],["Boquerón",4,[2,5,6,7,19,25,27]],["Borja",11,[2,7]],["Buena Vista",6,[2,7,21,23,26]],["Caacupé",10,[6,18]],["Caaguazú",5,[2,7,26]],["Caapucú",15,[2,7]],["Caazapá",6,[2,7,21,23,26]],["Caballero",15,[2,7]],["Cambyretá",12,[2,6,7,17,20]],["Campo Aceval",16,[2,5,6,7,19,25,27]],["Capiatá",8,[28]],["Capiibary",17,[2,7,16,26]],["Capitán Bado",2,[21,23,26]],["Capitán Mauricio José Troche",11,[2,7,26]],["Capitán Meza",12,[2,7,19]],["Capitán Miranda",12,[2,6,7,17,20]],["Caraguatay",10,[2,7,18,26]],["Carapeguá",15,[10]],["Carayaó",5,[2,7]],["Carlos Antonio López",12,[2,6,7,19]],["Carmelo Peralta",0,[2,5,19,25,26,27]],["Carmen del Paraná",12,[2,6,7,17,20]],["Cerrito",14,[2,5,19,21,23,25,26,27]],["Cerro Corá",2,[11,20,21,23]],["Choré",17,[2,7,16,26]],["Ciudad del Este",1,[1,11,13,20,22,24]],["Concepción",9,[2,7,13,18]],["Coronel Bogado",12,[2,7]],["Coronel Martínez",11,[2,7]],["Coronel Oviedo",5,[2,7,11]],["Corpus Christi",7,[2,7,12]],["Desmochados",14,[2,5,19,21,23,25,26,27]],["Doctor Bottrell",11,[2,7,11]],["Domingo Martínez de Irala",1,[11,20,24]],["Dr. Cecilio Báez",5,[2,7]],["J. Eulogio Estigarribia",5,[2,6,7]],["Juan León Mallorquín",1,[11,20,24]],["Dr. Juan Manuel Frutos",5,[2,6,7,26]],["Dr. Moisés S. Bertoni",6,[2,7,21,23,26]],["Dr. Raúl Peña",1,[2,6,7,12]],["Edelira",12,[2,7,19]],["Emboscada",10,[2,5,7,16,17,18,19,25,27]],["Encarnación",12,[2,6,7,17,20]],["Escobar",15,[6,26]],["Eusebio Ayala",10,[6,18]],["Félix Pérez Cardozo",11,[2,7]],["Fernando de la Mora",8,[15,28]],["Filadelfia",4,[2,5,6,7,19,25,27]],["Fram",12,[2,6,7,17,20]],["Francisco Caballero Alvarez",7,[2,7,12]],["Fuerte Olimpo",0,[2,5,19,25,26,27]],["General Artigas",12,[2,3,7]],["General Delgado",12,[2,7]],["General Elizardo Aquino",17,[2,7,16,26]],["General Francisco Isidoro Resquín",17,[2,7,16,26]],["General José María Bruguez",16,[2,5,7,13,19,25,27]],["Gral. Eugenio A. Garay",11,[2,7]],["Gral. Higinio Morinigo",6,[2,7,21,23,26]],["Gral. José Eduvigis Díaz",14,[2,5,19,21,23,25,26,27]],["Guajayvi",17,[2,7,16,26]],["Guarambaré",8,[2,4,5,7,15,19,25,27,28]],["Guazú-cuá",14,[5,9,16,19,21,23,25,27]],["Hernandarias",1,[13,15,20]],["Hohenau",12,[2,6,7,17,20]],["Horqueta",9,[2,7,13,18]],["Humaitá",14,[5,9,16,19,21,23,25,27]],["Independencia",11,[2,7]],["Iruña",1,[6]],["Isla Pucú",10,[2,6,7,18,26]],["Isla Umbú",14,[5,9,16,19,21,23,25,27]],["Itá",8,[2,4,5,7,19,25,27]],["Itacuá",9,[2,5,18,19,25,26,27]],["Itacurubí de la Cordillera",10,[2,7,26]],["Itacurubí del Rosario",17,[2,7,16,26]],["Itakyry",1,[2,7,12]],["Itanará",7,[2,7,16,26]],["Itapé",11,[2,7]],["Itapúa Poty",12,[2,7,19]],["Itauguá",8,[2,4,5,7,19,25,27]],["Iturbe",11,[2,7]],["J. Augusto Saldívar",8,[28]],["Jesús",12,[2,6,7,17,20]],["José Domingo Ocampos",5,[2,6,7]],["José Falcón",16,[2,5,7,13,19,25,27]],["José Fassardi",11,[2,7]],["José Leandro Oviedo",12,[2,3,7]],["Juan de Mena",10,[2,7,26]],["Juan E. O'Leary",1,[11,20,24]],["Karapaí",2,[21,23,26]],["Katueté",7,[2,7,12]],["La Colmena",15,[2,7]],["La Paloma del Espíritu Santo",7,[11,19]],["La Pastora",5,[2,7]],["La Paz",12,[2,6,7,17,20]],["Lambaré",8,[28]],["Laurel",7,[2,7,12]],["Laureles",14,[2,5,19,21,23,25,26,27]],["Liberación",17,[2,7,16,26]],["Lima",17,[2,7,16,26]],["Limpio",8,[1,2,5,7,13,15,16,17,19,25,27]],["Loma Grande",10,[18]],["Loma Plata",4,[2,5,6,7,19,25,27]],["Loreto",9,[2,7,13,18]],["Los Cedrales",1,[1,11,20,24]],["Luque",8,[1,2,5,7,15,16,17,19,22,25,27,28]],["Maciel",6,[2,7,21,23,26]],["Maracaná",7,[2,7,16,26]],["María Antonia",15,[2,7]],["Mariano Roque Alonso",8,[1,2,5,7,13,15,19,22,25,27]],["Mariscal Francisco Solano López",5,[2,7,8,17,18,26]],["Mariscal José Félix Estigarribia",4,[2,5,6,7,19,25,27]],["Mayor José Dejesús Martínez",14,[2,5,19,21,23,25,26,27]],["Mayor Julio Dionisio Otaño",12,[6]],["Mbaracayú",1,[2,7,8,17,18,26]],["Mbocayaty",11,[2,7]],["Mbocayaty del Yhaguy",10,[2,7,26]],["Mbuyapey",15,[2,7,26]],["Minga Guazú",1,[1,11,13,20,24]],["Minga Porá",1,[2,7,12]],["Nanawa",16,[2,5,7,13,19,25,27]],["Naranjal",1,[2,7,12]],["Natalicio Talavera",11,[2,7]],["Natalio",12,[2,7,19]],["Nueva Alborada",12,[2,6,7,17,20]],["Nueva Asunción",16,[2,5,7,13,15,19,25,27]],["Nueva Colombia",10,[18]],["Nueva Esperanza",7,[2,7,12]],["Nueva Germania",17,[2,7,16,26]],["Nueva Italia",8,[2,4,5,7,10,19,25,27]],["Nueva Londres",5,[2,7,11]],["Nueva Toledo",5,[2,7]],["Ñacunday",1,[11,20,24]],["Ñemby",8,[28]],["Ñumí",11,[2,7]],["Obligado",12,[2,6,7,17,20]],["Paraguarí",15,[10,11,20,24]],["Paso Barreto",9,[2,7,13,14,16,18,26]],["Paso de Patria",14,[2,5,19,21,23,25,26,27]],["Paso Horqueta",9,[2,5,7,13,18,19,25,26,27]],["Paso Yobai",11,[2,7,26]],["Pedro Juan Caballero",2,[11,20,21,22,23]],["Pilar",14,[5,9,16,19,21,23,25,27]],["Pirapó",12,[2,7,19]],["Pirayú",15,[11,20,24]],["Piribebuy",10,[6,18,26]],["Presidente Franco",1,[11,20,24]],["Primero de Marzo",10,[2,7,26]],["Puerto Adela",7,[11,19]],["Puerto Casado",0,[2,5,6,7,19,25,26,27]],["Puerto Pinasco",16,[2,5,19,25,26,27]],["Quiindy",15,[10]],["Quyquyhó",15,[2,7]],["R.I. 3 Corrales",5,[2,7,11,26]],["Raúl Arsenio Oviedo",5,[2,6,7]],["Repatriación",5,[2,6,7,26]],["Roque Gonzalez de Santa Cruz",15,[10]],["Salto del Guairá",7,[11,15,19]],["San Alberto",1,[2,7,8,17,18,26]],["San Alfredo",9,[2,5,18,19,25,26,27]],["San Antonio",8,[28]],["San Bernardino",10,[2,5,7,16,17,19,25,27]],["San Carlos del Apa",9,[2,5,18,19,25,26,27]],["San Cosme y Damián",12,[2,7]],["San Cristóbal",1,[2,7,12]],["San Estanislao",17,[2,7,16,26]],["San Ignacio",13,[2,7]],["San Joaquín",5,[2,7]],["San José de los Arroyos",5,[2,7,11,26]],["San José del Rosario",17,[2,7,26]],["San José Obrero",10,[18]],["San Juan Bautista",13,[2,7]],["San Juan Bautista de Ñeembucú",14,[5,9,16,19,21,23,25,27]],["San Juan del Paraná",12,[2,6,7,17,20]],["San Juan Nepomuceno",6,[2,7,21,23,26]],["San Lázaro",9,[2,5,18,19,25,26,27]],["San Lorenzo",8,[1,15,28]],["San Miguel",13,[2,7]],["San Pablo",17,[2,7,26]],["San Patricio",13,[2,7]],["San Pedro del Paraná",12,[2,3,6,7,17,20]],["San Pedro del Ycuamandyyú",17,[2,7,13,18,26]],["San Rafael del Paraná",12,[2,6,7,19]],["San Salvador",11,[2,7]],["San Vicente Pancholo",17,[2,7,16,26]],["Santa Elena",10,[2,7,26]],["Santa Fe del Paraná",1,[13,20]],["Santa María",13,[2,7]],["Santa Rita",1,[2,7,12,15]],["Santa Rosa",13,[2,7]],["Santa Rosa del Aguaray",17,[2,7,16,26]],["Santa Rosa del Mbutuy",5,[2,7,16,26]],["Santa Rosa del Monday",1,[11,20,24]],["Santiago",13,[2,7]],["Sapucái",15,[6,26]],["Sargento José Félix López",9,[2,7,14,16,18,26]],["Simón Bolivar",5,[2,7]],["Tacuaras",14,[2,5,19,21,23,25,26,27]],["Tacuatí",17,[2,7,13,16,18,26]],["Tavaí",6,[2,6,7,12,21,23,26]],["Tavapy",1,[2,7,11,12,20,24]],["Tebicuary",11,[2,7]],["Tebicuary-mí",15,[2,7]],["Tembiaporá",5,[2,6,7]],["Teniente Esteban Martínez",16,[2,5,6,7,19,25,27]],["Tobatí",10,[6,18]],["Tomás Romero Pereira",12,[2,7,19]],["Trinidad",12,[2,6,7,17,20]],["Tte. 1° Manuel Irala Fernández",16,[2,5,6,7,19,25,27]],["Unión",17,[2,7,16,26]],["Valenzuela",10,[2,6,7,26]],["Vaquería",5,[2,7,16,26]],["Villa Curuguaty",7,[2,7,16,26]],["Villa del Rosario",17,[2,7,26]],["Villa Elisa",8,[1,28]],["Villa Florida",13,[2,7]],["Villa Franca",14,[9,13,19,21,23]],["Villa Hayes",16,[2,5,7,13,19,25,26,27]],["Villa Oliva",14,[9,13,19,21,23]],["Villa Ygatimí",7,[2,7,16,26]],["Villalbín",14,[2,5,19,21,23,25,26,27]],["Villarrica",11,[2,7]],["Villeta",8,[2,4,5,6,7,9,15,19,25,27]],["Yabebyry",13,[2,7]],["Yaguarón",15,[11,20,24]],["Yasy Cañy",7,[2,7,16,26]],["Yataity",11,[2,7,11]],["Yataity del Norte",17,[2,7,16,26]],["Yatytay",12,[2,7,19]],["Yby Pyta",7,[2,7,16,26]],["Yby Yaú",9,[2,7,14,16,18,26]],["Ybycuí",15,[2,7]],["Ybyrarobaná",7,[2,7,12]],["Ybytymí",15,[2,7]],["Yegros",6,[2,7,21,23,26]],["Yguazú",1,[11,20,24]],["Yhú",5,[2,7]],["Ypacaraí",8,[2,4,5,7,19,25,27]],["Ypané",8,[28]],["Ypejhú",7,[2,7,16,26]],["Yrybucua",17,[2,7,16,26]],["Yuty",6,[2,3,7,21,23,26]],["Zanja Pyta",2,[11,20,21,23]]]};
+const DIST=DIST_DATA.rows.map(([n,d,s])=>({n,dep:DEPTS.findIndex(x=>x[0]===DIST_DATA.deps[d]),set:new Set(s.map(x=>x-1))}));
+let view=null, scrollY0=0;
+function openDetail(s,d){scrollY0=window.scrollY;view={s,d};showView();window.scrollTo(0,0)}
+function closeDetail(){view=null;showView();window.scrollTo(0,scrollY0)}
+function showView(){
+  const det=$("detail"), main=$("mainView"), sum=$("summary"), fil=document.querySelector(".filters");
+  det.hidden=!view; main.hidden=!!view; fil.hidden=!!view;
+  if(!view){summary();return}
+  sum.hidden=true;
+  const {s,d}=view, dn=DEPTS[d][0];
+  const all=DIST.filter(t=>t.dep===d).sort((a,b)=>a.n.localeCompare(b.n,"es"));
+  const yes=all.filter(t=>t.set.has(s)), no=all.filter(t=>!t.set.has(s));
+  const card=(t,on)=>`<div class="dcard${on?"":" off"}"><span class="ck"></span><div style="min-width:0"><div class="nm">${esc(t.n)}</div><div class="sm">${t.set.size} de 28 sectores en el distrito</div></div></div>`;
+  det.innerHTML=`
+    <button class="back" type="button" id="backBtn">← Volver al panorama</button>
+    <div class="dhead">
+      <div class="crumbs"><button type="button" id="crumbAll">Panorama</button><span>›</span><span>${dn}</span><span>›</span><span>${esc(SECTORS[s][0])}</span></div>
+      <h2>${esc(SECTORS[s][1])} en ${dn}: <b>${yes.length} de ${all.length}</b> distrito${all.length===1?"":"s"}</h2>
+      <div class="meter"><b style="width:${all.length?yes.length/all.length*100:0}%"></b></div>
+    </div>
+    <div class="dgroup"><h3>Distritos donde se realiza el rubro (${yes.length})</h3>
+      ${yes.length?`<div class="dgrid">${yes.map(t=>card(t,true)).join("")}</div>`:`<div class="dempty">La base distrital no registra distritos de ${dn} para este rubro.</div>`}
+    </div>
+    ${no.length?`<div class="dgroup"><h3>Resto de distritos de ${dn} (${no.length})</h3><div class="dgrid">${no.map(t=>card(t,false)).join("")}</div></div>`:""}`;
+  $("backBtn").onclick=closeDetail; $("crumbAll").onclick=closeDetail;
+  $("backBtn").focus({preventScroll:true});
+}
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&view)closeDetail()});
+
+function render(){
+  fS.value=st.s;fD.value=st.d;
+  fS.classList.toggle("active",st.s>=0);fD.classList.toggle("active",st.d>=0);
+  $("reset").disabled=st.s<0&&st.d<0;
+  $("ordA").setAttribute("aria-pressed",st.order==="a");$("ordN").setAttribute("aria-pressed",st.order==="n");
+  $("hideEmpty").checked=st.hide;
+  try{localStorage.setItem("compat-ui",JSON.stringify({order:st.order,hide:st.hide}))}catch(e){}
+  summary();table();
+}
+fS.onchange=()=>{st.s=+fS.value;render()};
+fD.onchange=()=>{st.d=+fD.value;render()};
+$("reset").onclick=()=>{st.s=-1;st.d=-1;render()};
+$("ordA").onclick=()=>{st.order="a";render()};
+$("ordN").onclick=()=>{st.order="n";render()};
+$("hideEmpty").onchange=e=>{st.hide=e.target.checked;render()};
+render();
+</script>
+
+</body></html>
